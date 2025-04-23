@@ -1,24 +1,36 @@
-from models.quiz_model import QuizModel
-from views.main_window import MainWindow
+from frontend.models.quiz_model import QuizModel
+from frontend.views.main_window import MainWindow
 from PyQt5.QtCore import QTimer
 
 class MainController:
     def __init__(self):
         self.model = QuizModel()
-        self.view = MainWindow()
-        self.setup_connections()
-        self.start_quiz()
+        self.model.load_questions()  # Load questions at startup
+        
+        # Create main window but don't show it yet
+        self.game_window = MainWindow()
+        self.game_window.controller = self
+        
+        # Setup timer
+        self.timer = QTimer()
+        self.timer.setInterval(100)
+        self.timer.timeout.connect(self.check_answer)
+        
+        # Connect auth signal and show auth window
+        self.game_window.auth_window.auth_successful.connect(self.on_auth_successful)
+        self.game_window.auth_window.show()
 
     def setup_connections(self):
-        self.model.load_questions()
-        # Setup timer to check for answers
-        self.timer = QTimer()
-        self.timer.setInterval(100)  # Check every 100ms
-        self.timer.timeout.connect(self.check_answer)
+        pass  # Moved connections setup to __init__
+
+    def on_auth_successful(self, username):
+        # Show game window and start quiz
+        self.game_window.show()
+        self.start_quiz()
         self.timer.start()
 
     def show_main_window(self):
-        self.view.show()
+        pass  # Теперь не нужно, так как окна управляются через on_auth_successful
 
     def start_quiz(self):
         self.model.reset_quiz()
@@ -27,13 +39,13 @@ class MainController:
     def show_next_question(self):
         question = self.model.get_current_question()
         if question:
-            self.view.show_question(question['question'], question['options'])
+            self.game_window.show_question(question['question'], question['options'])
         else:
-            self.view.show_final_score(self.model.get_score(), len(self.model.questions))
+            self.game_window.show_final_score(self.model.get_score(), len(self.model.questions))
             self.start_quiz()
 
     def check_answer(self):
-        selected_answer = self.view.get_selected_answer()
+        selected_answer = self.game_window.get_selected_answer()
         if selected_answer is not None:
             current_question = self.model.get_current_question()
             
@@ -41,7 +53,7 @@ class MainController:
             self.timer.stop()
             
             # Показываем результат на плитках
-            self.view.show_answer_result(current_question['correct_answer'])
+            self.game_window.show_answer_result(current_question['correct_answer'])
             
             # Проверяем ответ
             self.model.check_answer(selected_answer)
@@ -51,7 +63,7 @@ class MainController:
 
     def proceed_to_next(self):
         if not self.model.next_question():
-            self.view.show_final_score(self.model.get_score(), len(self.model.questions))
+            self.game_window.show_final_score(self.model.get_score(), len(self.model.questions))
             self.start_quiz()
         else:
             self.show_next_question()

@@ -3,6 +3,7 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QMessageBox, QGridLayout, QFrame, QGraphicsOpacityEffect)
 from PyQt5.QtCore import Qt, QPropertyAnimation, QEasingCurve, QPoint, QSize, QTimer
 from PyQt5.QtGui import QFont, QPalette, QColor
+from frontend.views.auth_window import AuthWindow
 
 class AnswerTile(QFrame):
     def __init__(self, text="", color="#3498db", parent=None):
@@ -12,28 +13,45 @@ class AnswerTile(QFrame):
         self.is_selected = False
         self.is_animating = False
         
-        # Создаем эффект прозрачности
         self.opacity_effect = QGraphicsOpacityEffect(self)
-        self.setGraphicsEffect(self.opacity_effect)
         self.opacity_effect.setOpacity(1.0)
+        self.setGraphicsEffect(self.opacity_effect)
         
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(10)
         
-        # Основной текст ответа
+        # Main answer text
         self.label = QLabel(text)
         self.label.setAlignment(Qt.AlignCenter)
         self.label.setWordWrap(True)
-        layout.addWidget(self.label)
+        self.label.setStyleSheet("""
+            QLabel {
+                color: white;
+                font-size: 24px;
+                font-weight: bold;
+                background: transparent;
+            }
+        """)
+        layout.addWidget(self.label, 1)  # Add stretch factor
         
-        # Метка для показа очков
+        # Score label
         self.score_label = QLabel("")
         self.score_label.setAlignment(Qt.AlignCenter)
+        self.score_label.setStyleSheet("""
+            QLabel {
+                color: white;
+                font-size: 20px;
+                font-weight: bold;
+                background: transparent;
+            }
+        """)
         self.score_label.hide()
         layout.addWidget(self.score_label)
         
         self.update_style()
         
-        # Анимации
+        # Animations
         self.scale_animation = QPropertyAnimation(self, b"geometry")
         self.scale_animation.setDuration(300)
         self.scale_animation.setEasingCurve(QEasingCurve.OutBack)
@@ -47,16 +65,12 @@ class AnswerTile(QFrame):
             color = "#2ecc71" if is_correct else "#e74c3c"
             
         self.setStyleSheet(f"""
-            AnswerTile {{
+            QFrame {{
                 background-color: {color};
-                border-radius: 10px;
-                min-height: 150px;
-                margin: 10px;
-            }}
-            QLabel {{
-                color: white;
-                font-size: 18px;
-                font-weight: bold;
+                border-radius: 15px;
+                min-height: 195px;
+                margin: 13px;
+                border: none;
             }}
         """)
         
@@ -124,11 +138,14 @@ class AnswersContainer(QWidget):
         self.setStyleSheet("""
             QWidget {
                 background-color: #1a1a1a;
-                padding: 20px;
             }
         """)
-        self.layout = QGridLayout(self)
-        self.layout.setSpacing(20)
+        
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(40, 40, 40, 40)
+        
+        grid_layout = QGridLayout()
+        grid_layout.setSpacing(30)
         
         # Create answer tiles
         self.answer_tiles = []
@@ -138,7 +155,9 @@ class AnswersContainer(QWidget):
             self.answer_tiles.append(tile)
             row = i // 2
             col = i % 2
-            self.layout.addWidget(tile, row, col)
+            grid_layout.addWidget(tile, row, col)
+        
+        main_layout.addLayout(grid_layout)
 
     def tile_clicked(self, tile):
         # Deselect all tiles
@@ -162,6 +181,24 @@ class AnswersContainer(QWidget):
         if not is_correct:
             self.answer_tiles[correct_index].show_result(True)
             
+        # Делаем все остальные ответы серыми
+        for i, tile in enumerate(self.answer_tiles):
+            if i != selected_index and i != correct_index:
+                tile.update_style(None)  # Сбрасываем стиль
+                tile.setStyleSheet(f"""
+                    AnswerTile {{
+                        background-color: #95a5a6;
+                        border-radius: 10px;
+                        min-height: 150px;
+                        margin: 10px;
+                    }}
+                    QLabel {{
+                        color: white;
+                        font-size: 18px;
+                        font-weight: bold;
+                    }}
+                """)
+            
         # Задержка перед следующим вопросом
         QTimer.singleShot(1500, self.reset_tiles)
             
@@ -173,8 +210,16 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle('Quiz')
-        self.setMinimumSize(800, 600)
+        self.setFixedSize(1040, 780)
+        self.setWindowFlags(self.windowFlags() & ~Qt.WindowMaximizeButtonHint)
         self.selected_answer = None
+        self.current_user = None
+        
+        # Create auth window
+        self.auth_window = AuthWindow(self)
+        self.auth_window.auth_successful.connect(self.handle_successful_auth)
+        
+        # Setup UI but don't show any windows
         self.setup_ui()
 
     def setup_ui(self):
@@ -189,9 +234,9 @@ class MainWindow(QMainWindow):
         question_container.setStyleSheet("""
             QWidget {
                 background-color: #2c001e;
-                min-height: 200px;
             }
         """)
+        question_container.setMinimumHeight(260)
         question_layout = QVBoxLayout(question_container)
         
         self.question_label = QLabel()
@@ -200,8 +245,8 @@ class MainWindow(QMainWindow):
         self.question_label.setStyleSheet("""
             QLabel {
                 color: white;
-                font-size: 24px;
-                margin: 20px;
+                font-size: 31px;
+                padding: 26px;
             }
         """)
         question_layout.addWidget(self.question_label)
@@ -211,11 +256,24 @@ class MainWindow(QMainWindow):
         self.answers_container = AnswersContainer(self)
         main_layout.addWidget(self.answers_container)
 
+    def show_auth_window(self):
+        self.hide()
+        self.auth_window.show()
+
+    def handle_successful_auth(self, username):
+        self.current_user = username
+        self.auth_window.hide()
+        # Don't show main window here - let the controller handle it
+        if hasattr(self, 'controller'):
+            self.controller.start_quiz()
+
     def show_question(self, question, options):
         self.question_label.setText(question)
         self.selected_answer = None
         for tile, option in zip(self.answers_container.answer_tiles, options):
-            tile.label.setText(option)
+            # Escape HTML tags by replacing < and > with &lt; and &gt;
+            escaped_option = option.replace('<', '&lt;').replace('>', '&gt;')
+            tile.label.setText(escaped_option)
             tile.reset()
 
     def get_selected_answer(self):
