@@ -17,7 +17,7 @@ class QuizModelTestCase(unittest.TestCase):
     def test_check_answer_correct(self):
         result = self.model.check_answer(0)
         self.assertTrue(result)
-        self.assertEqual(self.model.score, 500)
+        self.assertEqual(self.model.get_score(), 500)
 
     def test_check_answer_incorrect(self):
         result = self.model.check_answer(1)
@@ -31,6 +31,7 @@ class QuizModelTestCase(unittest.TestCase):
 
     def test_is_finished(self):
         self.model.next_question()
+        self.assertFalse(self.model.is_finished())
         self.model.next_question()
         self.assertTrue(self.model.is_finished())
 
