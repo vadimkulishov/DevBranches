@@ -13,6 +13,8 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
 # User model
+
+
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
@@ -23,6 +25,7 @@ class User(db.Model):
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+
 
 # Quiz questions
 questions = [
@@ -104,6 +107,8 @@ questions = [
 ]
 
 # Routes
+
+
 @app.route('/api/register', methods=['POST'])
 def register():
     data = request.get_json()
@@ -123,6 +128,7 @@ def register():
 
     return jsonify({'message': 'User registered successfully'}), 201
 
+
 @app.route('/api/login', methods=['POST'])
 def login():
     data = request.get_json()
@@ -138,11 +144,13 @@ def login():
 
     return jsonify({'message': 'Login successful'}), 200
 
+
 @app.route('/api/questions', methods=['GET'])
 def get_questions():
     return jsonify(questions)
 
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-    app.run(debug=True, port=5001) 
+    app.run(debug=True, port=5001)

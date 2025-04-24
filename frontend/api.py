@@ -1,5 +1,6 @@
 import requests
 
+
 class QuizAPI:
     def __init__(self, base_url='http://localhost:5001'):
         self.base_url = base_url
@@ -20,4 +21,4 @@ class QuizAPI:
 
     def get_questions(self):
         response = requests.get(f'{self.base_url}/api/questions')
-        return response.json(), response.status_code 
+        return response.json(), response.status_code

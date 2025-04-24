@@ -5,6 +5,7 @@ from PyQt5.QtCore import Qt, QPropertyAnimation, QEasingCurve, QPoint, QSize, QT
 from PyQt5.QtGui import QFont, QPalette, QColor
 from frontend.views.auth_window import AuthWindow
 
+
 class AnswerTile(QFrame):
     def __init__(self, text="", color="#3498db", parent=None):
         super().__init__(parent)
@@ -34,7 +35,8 @@ class AnswerTile(QFrame):
                 min-height: 50px; /* Устанавливаем минимальную высоту для выравнивания текста */
             }
         """)
-        layout.addWidget(self.label, alignment=Qt.AlignCenter)  # Центрируем текст
+        layout.addWidget(
+            self.label, alignment=Qt.AlignCenter)  # Центрируем текст
 
         # Score label
         self.score_label = QLabel("")
@@ -57,14 +59,15 @@ class AnswerTile(QFrame):
         self.scale_animation.setDuration(300)
         self.scale_animation.setEasingCurve(QEasingCurve.OutBack)
 
-        self.opacity_animation = QPropertyAnimation(self.opacity_effect, b"opacity")
+        self.opacity_animation = QPropertyAnimation(
+            self.opacity_effect, b"opacity")
         self.opacity_animation.setDuration(300)
 
     def update_style(self, is_correct=None):
         color = self.base_color
         if is_correct is not None:
             color = "#2ecc71" if is_correct else "#e74c3c"
-            
+
         self.setStyleSheet(f"""
             QFrame {{
                 background-color: {color};
@@ -74,7 +77,7 @@ class AnswerTile(QFrame):
                 border: none;
             }}
         """)
-        
+
     def show_result(self, is_correct, points=None):
         self.update_style(is_correct)
         if is_correct and points is not None:
@@ -88,46 +91,47 @@ class AnswerTile(QFrame):
             score_anim.setStartValue(0)
             score_anim.setEndValue(1)
             score_anim.start()
-        
+
     def reset(self):
         self.update_style()
         self.score_label.hide()
         self.is_selected = False
-        
+
     def play_pop_animation(self):
         if self.is_animating:
             return
-            
+
         self.is_animating = True
         current_geometry = self.geometry()
-        
+
         # Анимация масштабирования
         self.scale_animation.setStartValue(current_geometry)
-        
+
         # Создаем немного больший прямоугольник для эффекта "надувания"
         expanded = current_geometry.adjusted(-10, -10, 10, 10)
         self.scale_animation.setKeyValueAt(0.5, expanded)
         self.scale_animation.setEndValue(current_geometry)
-        
+
         # Анимация прозрачности
         self.opacity_animation.setStartValue(1.0)
         self.opacity_animation.setKeyValueAt(0.5, 0.7)
         self.opacity_animation.setEndValue(1.0)
-        
+
         # Запускаем анимации
         self.scale_animation.start()
         self.opacity_animation.start()
-        
+
         # Сброс флага анимации после завершения
         self.scale_animation.finished.connect(self.reset_animation)
-        
+
     def reset_animation(self):
         self.is_animating = False
-        
+
     def mousePressEvent(self, event):
         if isinstance(self.parent(), AnswersContainer):
             self.play_pop_animation()
             self.parent().tile_clicked(self)
+
 
 class AnswersContainer(QWidget):
     def __init__(self, parent=None):
@@ -141,13 +145,13 @@ class AnswersContainer(QWidget):
                 background-color: #1a1a1a;
             }
         """)
-        
+
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(40, 40, 40, 40)
-        
+
         grid_layout = QGridLayout()
         grid_layout.setSpacing(30)
-        
+
         # Create answer tiles
         self.answer_tiles = []
         colors = ["#3498db", "#16a085", "#f39c12", "#e74c3c"]
@@ -157,7 +161,7 @@ class AnswersContainer(QWidget):
             row = i // 2
             col = i % 2
             grid_layout.addWidget(tile, row, col)
-        
+
         main_layout.addLayout(grid_layout)
 
     def tile_clicked(self, tile):
@@ -165,7 +169,7 @@ class AnswersContainer(QWidget):
         for t in self.answer_tiles:
             if t != tile:
                 t.is_selected = False
-        
+
         # Select clicked tile
         tile.is_selected = True
         if self.main_window:
@@ -174,14 +178,15 @@ class AnswersContainer(QWidget):
     def show_result(self, selected_index, correct_index):
         is_correct = selected_index == correct_index
         points = 10 if is_correct else 0
-        
+
         # Показываем результат на выбранной плитке
-        self.answer_tiles[selected_index].show_result(is_correct, points if is_correct else None)
-        
+        self.answer_tiles[selected_index].show_result(
+            is_correct, points if is_correct else None)
+
         # Если ответ неверный, показываем правильный ответ
         if not is_correct:
             self.answer_tiles[correct_index].show_result(True)
-            
+
         # Делаем все остальные ответы серыми
         for i, tile in enumerate(self.answer_tiles):
             if i != selected_index and i != correct_index:
@@ -199,13 +204,14 @@ class AnswersContainer(QWidget):
                         font-weight: bold;
                     }}
                 """)
-            
+
         # Задержка перед следующим вопросом
         QTimer.singleShot(1500, self.reset_tiles)
-            
+
     def reset_tiles(self):
         for tile in self.answer_tiles:
             tile.reset()
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -215,7 +221,7 @@ class MainWindow(QMainWindow):
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowMaximizeButtonHint)
         self.selected_answer = None
         self.current_user = None
-        
+
         # Apply global dark theme
         self.setStyleSheet("""
             QMainWindow {
@@ -254,7 +260,7 @@ class MainWindow(QMainWindow):
         # Create auth window
         self.auth_window = AuthWindow(self)
         self.auth_window.auth_successful.connect(self.handle_successful_auth)
-        
+
         # Setup UI but don't show any windows
         self.setup_ui()
 
@@ -274,7 +280,7 @@ class MainWindow(QMainWindow):
         """)
         question_container.setMinimumHeight(260)
         question_layout = QVBoxLayout(question_container)
-        
+
         self.nickname_label = QLabel()
         self.nickname_label.setAlignment(Qt.AlignCenter)
         self.nickname_label.setStyleSheet("""
@@ -372,7 +378,8 @@ class MainWindow(QMainWindow):
             self.handle_time_up()
 
     def handle_time_up(self):
-        QMessageBox.warning(self, "Время вышло", "Вы не успели ответить на вопрос!")
+        QMessageBox.warning(self, "Время вышло",
+                            "Вы не успели ответить на вопрос!")
         if hasattr(self, 'controller'):
             self.controller.next_question()
 
@@ -401,7 +408,8 @@ class MainWindow(QMainWindow):
         return self.selected_answer
 
     def show_answer_result(self, correct_answer):
-        self.answers_container.show_result(self.selected_answer, correct_answer)
+        self.answers_container.show_result(
+            self.selected_answer, correct_answer)
 
     def show_score(self, score):
         pass  # We'll show score in the final message only
@@ -445,7 +453,8 @@ class MainWindow(QMainWindow):
         """)
         layout.addWidget(score_label)
 
-        recommendation_label = QLabel("Рекомендации: Попробуйте улучшить свои знания в области, где вы допустили ошибки.")
+        recommendation_label = QLabel(
+            "Рекомендации: Попробуйте улучшить свои знания в области, где вы допустили ошибки.")
         recommendation_label.setAlignment(Qt.AlignCenter)
         recommendation_label.setWordWrap(True)
         recommendation_label.setStyleSheet("""
@@ -502,12 +511,15 @@ class MainWindow(QMainWindow):
         correct = self.quiz_model.check_answer(answer_index)
 
         if correct:
-            self.answer_buttons[answer_index].setStyleSheet("background-color: green;")
+            self.answer_buttons[answer_index].setStyleSheet(
+                "background-color: green;")
         else:
-            self.answer_buttons[answer_index].setStyleSheet("background-color: red;")
+            self.answer_buttons[answer_index].setStyleSheet(
+                "background-color: red;")
 
         if self.quiz_model.is_finished():
-            QMessageBox.information(self, "Игра окончена", "Вы завершили викторину.")
+            QMessageBox.information(
+                self, "Игра окончена", "Вы завершили викторину.")
             self.close()
         else:
             self.load_next_question()

@@ -1,11 +1,12 @@
-from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
+from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                              QLineEdit, QPushButton, QStackedWidget, QMessageBox,
                              QGraphicsDropShadowEffect, QFrame, QApplication, QMainWindow)
 from PyQt5.QtCore import Qt, QPropertyAnimation, QEasingCurve, QTimer, QRect, QSize, QParallelAnimationGroup, pyqtSignal
-from PyQt5.QtGui import (QFont, QColor, QPalette, QLinearGradient, QPainter, 
-                        QRadialGradient, QGradient, QPainterPath, QPixmap)
+from PyQt5.QtGui import (QFont, QColor, QPalette, QLinearGradient, QPainter,
+                         QRadialGradient, QGradient, QPainterPath, QPixmap)
 import math
 from frontend.api import QuizAPI
+
 
 class StyledLineEdit(QLineEdit):
     def __init__(self, placeholder, parent=None):
@@ -30,12 +31,13 @@ class StyledLineEdit(QLineEdit):
             }
         """)
 
+
 class StyledButton(QPushButton):
     def __init__(self, text, is_primary=True, parent=None):
         super().__init__(text, parent)
         self.is_primary = is_primary
         self.setup_ui()
-        
+
     def setup_ui(self):
         if self.is_primary:
             self.setStyleSheet("""
@@ -76,6 +78,7 @@ class StyledButton(QPushButton):
                 }
             """)
 
+
 class GradientBackground(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -95,14 +98,17 @@ class GradientBackground(QWidget):
         if self.offset > 1:
             self.offset = 0
 
-        self.gradient.setColorAt(0, QColor.fromHsvF((self.offset + 0.0) % 1, 1, 0.5))
-        self.gradient.setColorAt(1, QColor.fromHsvF((self.offset + 0.5) % 1, 1, 0.5))
+        self.gradient.setColorAt(0, QColor.fromHsvF(
+            (self.offset + 0.0) % 1, 1, 0.5))
+        self.gradient.setColorAt(1, QColor.fromHsvF(
+            (self.offset + 0.5) % 1, 1, 0.5))
         self.update()
 
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         painter.fillRect(self.rect(), self.gradient)
+
 
 class AuthWindow(QWidget):
     auth_successful = pyqtSignal(str)
@@ -215,7 +221,8 @@ class AuthWindow(QWidget):
                 border: none;
             }
         """)
-        animation_label.setPixmap(QPixmap("/path/to/your/animation.gif"))  # Укажите путь к анимации
+        animation_label.setPixmap(
+            QPixmap("/path/to/your/animation.gif"))  # Укажите путь к анимации
         right_layout.addWidget(animation_label)
 
         # Основной макет
@@ -228,28 +235,33 @@ class AuthWindow(QWidget):
         password = self.password_input.text()
 
         if not username or not password:
-            self.show_message('Ошибка', 'Пожалуйста, введите логин и пароль', QMessageBox.Warning)
+            self.show_message(
+                'Ошибка', 'Пожалуйста, введите логин и пароль', QMessageBox.Warning)
             return
 
         response, status_code = self.api.login(username, password)
         if status_code == 200:
             self.auth_successful.emit(username)
         else:
-            self.show_message('Ошибка', response.get('error', 'Неверный логин или пароль'), QMessageBox.Warning)
+            self.show_message('Ошибка', response.get(
+                'error', 'Неверный логин или пароль'), QMessageBox.Warning)
 
     def handle_register(self):
         username = self.username_input.text()
         password = self.password_input.text()
 
         if not username or not password:
-            self.show_message('Ошибка', 'Пожалуйста, введите логин и пароль', QMessageBox.Warning)
+            self.show_message(
+                'Ошибка', 'Пожалуйста, введите логин и пароль', QMessageBox.Warning)
             return
 
         response, status_code = self.api.register(username, password)
         if status_code == 201:
-            self.show_message('Успех', 'Регистрация успешна! Теперь вы можете войти.', QMessageBox.Information)
+            self.show_message(
+                'Успех', 'Регистрация успешна! Теперь вы можете войти.', QMessageBox.Information)
         else:
-            self.show_message('Ошибка', response.get('error', 'Ошибка при регистрации'), QMessageBox.Warning)
+            self.show_message('Ошибка', response.get(
+                'error', 'Ошибка при регистрации'), QMessageBox.Warning)
 
     def show_message(self, title, message, icon):
         msg = QMessageBox(self)

@@ -1,13 +1,16 @@
 import unittest
 from frontend.models.quiz_model import QuizModel
 
+
 class QuizModelTestCase(unittest.TestCase):
 
     def setUp(self):
         self.model = QuizModel()
         self.model.questions = [
-            {"question": "Question 1", "options": ["A", "B", "C", "D"], "correct_answer": 0},
-            {"question": "Question 2", "options": ["A", "B", "C", "D"], "correct_answer": 1}
+            {"question": "Question 1", "options": [
+                "A", "B", "C", "D"], "correct_answer": 0},
+            {"question": "Question 2", "options": [
+                "A", "B", "C", "D"], "correct_answer": 1}
         ]
 
     def test_get_current_question(self):
@@ -34,6 +37,7 @@ class QuizModelTestCase(unittest.TestCase):
         self.assertFalse(self.model.is_finished())
         self.model.next_question()
         self.assertTrue(self.model.is_finished())
+
 
 if __name__ == '__main__':
     unittest.main()

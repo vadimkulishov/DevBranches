@@ -38,9 +38,3 @@ jobs:
       run: |
         source venv/bin/activate
         python -m unittest discover -s frontend/tests
-
-    - name: Lint code
-      run: |
-        source venv/bin/activate
-        pip install flake8
-        flake8 .

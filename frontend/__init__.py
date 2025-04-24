@@ -1,1 +1,1 @@
-# This file makes the frontend directory a Python package 
+# This file makes the frontend directory a Python package

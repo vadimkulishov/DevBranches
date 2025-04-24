@@ -1,5 +1,6 @@
 from frontend.api import QuizAPI
 
+
 class QuizModel:
     def __init__(self):
         self.questions = []

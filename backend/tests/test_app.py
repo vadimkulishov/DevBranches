@@ -1,9 +1,10 @@
+from app import app, db, User
 import unittest
 import sys
 import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../')))
+sys.path.insert(0, os.path.abspath(
+    os.path.join(os.path.dirname(__file__), '../')))
 
-from app import app, db, User
 
 class BackendTestCase(unittest.TestCase):
 
@@ -25,7 +26,8 @@ class BackendTestCase(unittest.TestCase):
             'password': 'testpassword'
         })
         self.assertEqual(response.status_code, 201)
-        self.assertIn('User registered successfully', response.get_data(as_text=True))
+        self.assertIn('User registered successfully',
+                      response.get_data(as_text=True))
 
     def test_login_user(self):
         with app.app_context():
@@ -45,6 +47,7 @@ class BackendTestCase(unittest.TestCase):
         response = self.app.get('/api/questions')
         self.assertEqual(response.status_code, 200)
         self.assertIsInstance(response.get_json(), list)
+
 
 if __name__ == '__main__':
     unittest.main()
