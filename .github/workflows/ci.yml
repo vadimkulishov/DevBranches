@@ -1,0 +1,42 @@
+name: Simple CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+  pull_request:
+    branches:
+      - main
+      - dev
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: 🛒 Checkout code
+      uses: actions/checkout@v3
+
+    - name: 🐍 Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: 📦 Install dependencies
+      run: |
+        python -m venv venv
+        source venv/bin/activate
+        pip install -r requirements.txt
+
+    - name: 🧪 Run backend tests
+      env:
+        PYTHONPATH: ${{ github.workspace }}/backend
+      run: |
+        source venv/bin/activate
+        python -m unittest discover -s backend/tests -p '*.py'
+
+    - name: 🧪 Run frontend tests
+      run: |
+        source venv/bin/activate
+        python -m unittest discover -s frontend/tests
