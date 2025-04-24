@@ -1,5 +1,5 @@
 import unittest
-from app import app, db, User
+from ..app import app, db, User
 from flask import json
 
 class AppTestCase(unittest.TestCase):
