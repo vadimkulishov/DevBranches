@@ -22,7 +22,7 @@ class QuizModel:
     def check_answer(self, answer_index):
         current_question = self.get_current_question()
         if current_question and answer_index == current_question['correct_answer']:
-            self.score += 1
+            self.score += 500  # Исправлено начисление очков
             return True
         return False
 
