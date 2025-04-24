@@ -53,7 +53,7 @@ pip install -r requirements.txt
 
 4. Запустите приложение:
 ```bash
-python frontend/main.py
+python main.py
 ```
 
 ## Структура проекта

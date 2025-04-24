@@ -27,7 +27,7 @@ __pycache__/
 
 # База данных
 *.db
+
+# Локальные настройки
 .env
 *.local
-/venv/
-__pycache__
