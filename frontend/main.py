@@ -1,10 +1,10 @@
-from frontend.controllers.main_controller import MainController
 import sys
 import os
-from PyQt5.QtWidgets import QApplication
-
 # Add the parent directory to the Python path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from frontend.controllers.main_controller import MainController
+from PyQt5.QtWidgets import QApplication
 
 
 def main():

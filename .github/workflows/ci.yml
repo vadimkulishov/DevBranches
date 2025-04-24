@@ -23,6 +23,11 @@ jobs:
       with:
         python-version: '3.11'
 
+    - name: 🛠 Install system packages
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libpq-dev
+
     - name: 📦 Install dependencies
       run: |
         python -m venv venv
