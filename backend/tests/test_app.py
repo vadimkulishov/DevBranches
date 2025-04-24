@@ -1,4 +1,4 @@
-from app import app, db, User
+from backend.app import app, db, User
 import unittest
 import sys
 import os
