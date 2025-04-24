@@ -3,48 +3,9 @@ from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                              QGraphicsDropShadowEffect, QFrame, QApplication, QMainWindow)
 from PyQt5.QtCore import Qt, QPropertyAnimation, QEasingCurve, QTimer, QRect, QSize, QParallelAnimationGroup, pyqtSignal
 from PyQt5.QtGui import (QFont, QColor, QPalette, QLinearGradient, QPainter, 
-                        QRadialGradient, QGradient, QPainterPath)
+                        QRadialGradient, QGradient, QPainterPath, QPixmap)
 import math
-
-class AnimatedGradientBackground(QWidget):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.angle = 0
-        self.timer = QTimer(self)
-        self.timer.timeout.connect(self.update_gradient)
-        self.timer.start(50)  # Update every 50ms
-        
-    def update_gradient(self):
-        self.angle = (self.angle + 2) % 360
-        self.update()
-        
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
-        
-        # Create gradient
-        gradient = QLinearGradient(0, 0, self.width(), self.height())
-        
-        # Calculate gradient points based on angle
-        center_x = self.width() / 2
-        center_y = self.height() / 2
-        radius = math.sqrt(center_x**2 + center_y**2)
-        
-        start_x = center_x + radius * math.cos(math.radians(self.angle))
-        start_y = center_y + radius * math.sin(math.radians(self.angle))
-        end_x = center_x + radius * math.cos(math.radians(self.angle + 180))
-        end_y = center_y + radius * math.sin(math.radians(self.angle + 180))
-        
-        gradient.setStart(start_x, start_y)
-        gradient.setFinalStop(end_x, end_y)
-        
-        # Add colors
-        gradient.setColorAt(0, QColor(108, 92, 231))    # Purple
-        gradient.setColorAt(0.5, QColor(46, 134, 222))  # Blue
-        gradient.setColorAt(1, QColor(0, 206, 201))     # Cyan
-        
-        # Fill background
-        painter.fillRect(0, 0, self.width(), self.height(), gradient)
+from frontend.api import QuizAPI
 
 class StyledLineEdit(QLineEdit):
     def __init__(self, placeholder, parent=None):
@@ -53,15 +14,15 @@ class StyledLineEdit(QLineEdit):
         self.setStyleSheet("""
             QLineEdit {
                 background-color: rgba(255, 255, 255, 0.1);
-                border: 2px solid rgba(255, 255, 255, 0.1);
-                border-radius: 20px;
+                border: 2px solid rgba(255, 255, 255, 0.2);
+                border-radius: 15px;
                 color: white;
-                padding: 13px 20px;
-                font-size: 18px;
-                min-height: 26px;
+                padding: 12px 20px;
+                font-size: 16px;
+                min-height: 20px;
             }
             QLineEdit:focus {
-                border: 2px solid rgba(255, 255, 255, 0.3);
+                border: 2px solid rgba(255, 255, 255, 0.4);
                 background-color: rgba(255, 255, 255, 0.15);
             }
             QLineEdit::placeholder {
@@ -79,245 +40,232 @@ class StyledButton(QPushButton):
         if self.is_primary:
             self.setStyleSheet("""
                 QPushButton {
-                    background-color: #6c5ce7;
+                    background-color: #2c001e;
                     border: none;
-                    border-radius: 20px;
+                    border-radius: 15px;
                     color: white;
-                    padding: 13px 26px;
-                    font-size: 18px;
+                    padding: 12px 25px;
+                    font-size: 16px;
                     font-weight: bold;
-                    min-width: 156px;
+                    min-width: 120px;
                 }
                 QPushButton:hover {
-                    background-color: #8075e9;
+                    background-color: #3a0026;
                 }
                 QPushButton:pressed {
-                    background-color: #5849e5;
+                    background-color: #1a0012;
                 }
             """)
         else:
             self.setStyleSheet("""
                 QPushButton {
                     background-color: rgba(255, 255, 255, 0.1);
-                    border: 2px solid rgba(255, 255, 255, 0.1);
-                    border-radius: 20px;
+                    border: 2px solid rgba(255, 255, 255, 0.2);
+                    border-radius: 15px;
                     color: white;
-                    padding: 13px 26px;
-                    font-size: 18px;
-                    min-width: 156px;
+                    padding: 12px 25px;
+                    font-size: 16px;
+                    min-width: 120px;
                 }
                 QPushButton:hover {
                     background-color: rgba(255, 255, 255, 0.15);
-                    border: 2px solid rgba(255, 255, 255, 0.2);
+                    border: 2px solid rgba(255, 255, 255, 0.3);
                 }
                 QPushButton:pressed {
                     background-color: rgba(255, 255, 255, 0.05);
                 }
             """)
 
-class LoginScreen(QWidget):
+class GradientBackground(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setAutoFillBackground(True)
+        self.gradient = QLinearGradient(0, 0, 0, self.height())
+        self.gradient.setColorAt(0, QColor("#2c001e"))
+        self.gradient.setColorAt(1, QColor("#1a0012"))
+
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.update_gradient)
+        self.timer.start(50)  # Обновление каждые 50 мс
+
+        self.offset = 0
+
+    def update_gradient(self):
+        self.offset += 0.01
+        if self.offset > 1:
+            self.offset = 0
+
+        self.gradient.setColorAt(0, QColor.fromHsvF((self.offset + 0.0) % 1, 1, 0.5))
+        self.gradient.setColorAt(1, QColor.fromHsvF((self.offset + 0.5) % 1, 1, 0.5))
+        self.update()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        painter.fillRect(self.rect(), self.gradient)
+
+class AuthWindow(QWidget):
     auth_successful = pyqtSignal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.api = QuizAPI()
         self.setup_ui()
 
     def setup_ui(self):
-        # Create main layout
-        main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(52, 52, 52, 52)
-        main_layout.setSpacing(26)
-
-        # Add logo or title
-        title_label = QLabel("Welcome Back")
-        title_label.setStyleSheet("""
+        self.setWindowTitle('Авторизация')
+        self.setFixedSize(1040, 780)
+        self.setWindowFlags(Qt.Window)
+        self.setStyleSheet("""
+            QWidget {
+                background-color: #1a1a1a;
+                color: white;
+            }
             QLabel {
                 color: white;
-                font-size: 42px;
-                font-weight: bold;
+            }
+            QLineEdit {
+                background-color: #333333;
+                color: white;
+                border: 1px solid #444444;
+                border-radius: 5px;
+                padding: 5px;
+            }
+            QPushButton {
+                background-color: #333333;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                padding: 10px;
+            }
+            QPushButton:hover {
+                background-color: #444444;
             }
         """)
-        title_label.setAlignment(Qt.AlignCenter)
-        main_layout.addWidget(title_label)
 
-        subtitle_label = QLabel("Please sign in to continue")
-        subtitle_label.setStyleSheet("QLabel { color: rgba(255, 255, 255, 0.7); font-size: 21px; }")
-        subtitle_label.setAlignment(Qt.AlignCenter)
-        main_layout.addWidget(subtitle_label)
+        # Основной блок слева
+        left_container = QWidget()
+        left_layout = QVBoxLayout(left_container)
+        left_layout.setContentsMargins(50, 50, 50, 50)
+        left_layout.setSpacing(30)
 
-        main_layout.addSpacing(39)
-
-        # Create form layout
-        form_layout = QVBoxLayout()
-        form_layout.setSpacing(20)
-
-        # Username field
-        self.username_edit = StyledLineEdit("Username")
-        form_layout.addWidget(self.username_edit)
-
-        # Password field
-        self.password_edit = StyledLineEdit("Password")
-        self.password_edit.setEchoMode(QLineEdit.Password)
-        form_layout.addWidget(self.password_edit)
-
-        main_layout.addLayout(form_layout)
-        main_layout.addSpacing(20)
-
-        # Login button
-        self.login_button = StyledButton("Sign In", is_primary=True)
-        self.login_button.clicked.connect(self.handle_login)
-        main_layout.addWidget(self.login_button)
-
-        # Register button
-        self.register_button = StyledButton("Create Account", is_primary=False)
-        self.register_button.clicked.connect(self.handle_register)
-        main_layout.addWidget(self.register_button)
-
-        main_layout.addStretch()
-
-    def handle_login(self):
-        username = self.username_edit.text()
-        password = self.password_edit.text()
-        
-        if not username or not password:
-            QMessageBox.warning(
-                self,
-                "Error",
-                "Please fill in all fields",
-                QMessageBox.Ok
-            )
-            return
-            
-        # Временно для тестирования пропускаем любые непустые логин/пароль
-        self.auth_successful.emit(username)
-
-    def handle_register(self):
-        QMessageBox.information(
-            self,
-            "Registration",
-            "Registration functionality will be implemented soon!",
-            QMessageBox.Ok
-        )
-
-class RegisterScreen(QWidget):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setup_ui()
-        
-    def setup_ui(self):
-        layout = QVBoxLayout(self)
-        layout.setSpacing(20)
-        layout.setContentsMargins(40, 40, 40, 40)
-        
-        # Заголовок
-        title = QLabel("Регистрация")
+        # Title
+        title = QLabel('Викторина')
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("""
             QLabel {
                 color: white;
-                font-size: 32px;
+                font-size: 36px;
                 font-weight: bold;
                 margin-bottom: 20px;
             }
         """)
-        layout.addWidget(title)
-        
-        # Поля ввода
-        self.username = StyledLineEdit("Имя пользователя")
-        layout.addWidget(self.username)
-        
-        self.password = StyledLineEdit("Пароль")
-        self.password.setEchoMode(QLineEdit.Password)
-        layout.addWidget(self.password)
-        
-        self.confirm_password = StyledLineEdit("Подтвердите пароль")
-        self.confirm_password.setEchoMode(QLineEdit.Password)
-        layout.addWidget(self.confirm_password)
-        
-        # Кнопки
-        buttons_layout = QHBoxLayout()
+        left_layout.addWidget(title)
+
+        # Subtitle
+        subtitle = QLabel('Войдите в свой аккаунт')
+        subtitle.setAlignment(Qt.AlignCenter)
+        subtitle.setStyleSheet("""
+            QLabel {
+                color: rgba(255, 255, 255, 0.7);
+                font-size: 18px;
+                margin-bottom: 40px;
+            }
+        """)
+        left_layout.addWidget(subtitle)
+
+        # Username field
+        self.username_input = StyledLineEdit("Логин")
+        left_layout.addWidget(self.username_input)
+
+        # Password field
+        self.password_input = StyledLineEdit("Пароль")
+        self.password_input.setEchoMode(QLineEdit.Password)
+        left_layout.addWidget(self.password_input)
+
+        # Buttons container
+        buttons_container = QWidget()
+        buttons_layout = QHBoxLayout(buttons_container)
         buttons_layout.setSpacing(15)
-        
-        register_button = StyledButton("Зарегистрироваться", True)
-        register_button.clicked.connect(self.handle_register)
-        buttons_layout.addWidget(register_button)
-        
-        login_button = StyledButton("Вернуться ко входу", False)
-        login_button.clicked.connect(lambda: self.parent().switch_screen(0))
-        buttons_layout.addWidget(login_button)
-        
-        layout.addLayout(buttons_layout)
-        layout.addStretch()
-        
+
+        # Login button
+        self.login_button = StyledButton("Войти", True)
+        self.login_button.clicked.connect(self.handle_login)
+        buttons_layout.addWidget(self.login_button)
+
+        # Register button
+        self.register_button = StyledButton("Регистрация", False)
+        self.register_button.clicked.connect(self.handle_register)
+        buttons_layout.addWidget(self.register_button)
+
+        left_layout.addWidget(buttons_container)
+        left_layout.addStretch()
+
+        # Анимация справа
+        right_container = QWidget()
+        right_layout = QVBoxLayout(right_container)
+        right_layout.setContentsMargins(0, 0, 0, 0)
+        right_layout.setSpacing(0)
+
+        animation_label = QLabel()
+        animation_label.setAlignment(Qt.AlignCenter)
+        animation_label.setStyleSheet("""
+            QLabel {
+                background-color: #1a1a1a;
+                border: none;
+            }
+        """)
+        animation_label.setPixmap(QPixmap("/path/to/your/animation.gif"))  # Укажите путь к анимации
+        right_layout.addWidget(animation_label)
+
+        # Основной макет
+        main_layout = QHBoxLayout(self)
+        main_layout.addWidget(left_container, 1)
+        main_layout.addWidget(right_container, 1)
+
+    def handle_login(self):
+        username = self.username_input.text()
+        password = self.password_input.text()
+
+        if not username or not password:
+            self.show_message('Ошибка', 'Пожалуйста, введите логин и пароль', QMessageBox.Warning)
+            return
+
+        response, status_code = self.api.login(username, password)
+        if status_code == 200:
+            self.auth_successful.emit(username)
+        else:
+            self.show_message('Ошибка', response.get('error', 'Неверный логин или пароль'), QMessageBox.Warning)
+
     def handle_register(self):
-        username = self.username.text()
-        password = self.password.text()
-        confirm_password = self.confirm_password.text()
-        
-        if not username or not password or not confirm_password:
-            self.parent().show_error("Пожалуйста, заполните все поля")
+        username = self.username_input.text()
+        password = self.password_input.text()
+
+        if not username or not password:
+            self.show_message('Ошибка', 'Пожалуйста, введите логин и пароль', QMessageBox.Warning)
             return
-            
-        if password != confirm_password:
-            self.parent().show_error("Пароли не совпадают")
-            return
-            
-        self.parent().show_success("Регистрация успешна! Теперь вы можете войти.")
-        self.parent().switch_screen(0)
 
-class AuthWindow(QMainWindow):
-    auth_successful = pyqtSignal(str)
+        response, status_code = self.api.register(username, password)
+        if status_code == 201:
+            self.show_message('Успех', 'Регистрация успешна! Теперь вы можете войти.', QMessageBox.Information)
+        else:
+            self.show_message('Ошибка', response.get('error', 'Ошибка при регистрации'), QMessageBox.Warning)
 
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setup_ui()
-
-    def setup_ui(self):
-        self.setWindowTitle("Authorization")
-        self.setFixedSize(650, 780)
-        
-        # Set window flags to prevent resizing and remove maximize button
-        self.setWindowFlags(Qt.Window | Qt.WindowStaysOnTopHint | Qt.MSWindowsFixedSizeDialogHint)
-        
-        # Center window on screen
-        screen_geometry = QApplication.desktop().screenGeometry()
-        x = (screen_geometry.width() - self.width()) // 2
-        y = (screen_geometry.height() - self.height()) // 2
-        self.move(x, y)
-
-        # Create central widget with animated background
-        central_widget = AnimatedGradientBackground(self)
-        self.setCentralWidget(central_widget)
-
-        # Create login screen
-        self.login_screen = LoginScreen(central_widget)
-        self.login_screen.auth_successful.connect(self.handle_auth_successful)
-
-        # Add login screen to central widget
-        layout = QVBoxLayout(central_widget)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self.login_screen)
-
-    def handle_auth_successful(self):
-        username = self.login_screen.username_edit.text()
-        self.auth_successful.emit(username)
-        self.close()
-
-    def show_error(self, message):
+    def show_message(self, title, message, icon):
         msg = QMessageBox(self)
-        msg.setIcon(QMessageBox.Warning)
-        msg.setWindowTitle("Ошибка")
+        msg.setWindowTitle(title)
         msg.setText(message)
+        msg.setIcon(icon)
         msg.setStyleSheet("""
             QMessageBox {
-                background-color: #1a1a2e;
+                background-color: #2c001e;
                 color: white;
             }
             QMessageBox QLabel {
                 color: white;
             }
             QPushButton {
-                background-color: rgba(255, 255, 255, 0.2);
+                background-color: rgba(255, 255, 255, 0.1);
                 border: none;
                 border-radius: 15px;
                 color: white;
@@ -325,41 +273,10 @@ class AuthWindow(QMainWindow):
                 font-size: 14px;
             }
             QPushButton:hover {
-                background-color: rgba(255, 255, 255, 0.3);
-            }
-        """)
-        msg.exec_()
-
-    def show_success(self, message):
-        msg = QMessageBox(self)
-        msg.setIcon(QMessageBox.Information)
-        msg.setWindowTitle("Успех")
-        msg.setText(message)
-        msg.setStyleSheet("""
-            QMessageBox {
-                background-color: #1a1a2e;
-                color: white;
-            }
-            QMessageBox QLabel {
-                color: white;
-            }
-            QPushButton {
                 background-color: rgba(255, 255, 255, 0.2);
-                border: none;
-                border-radius: 15px;
-                color: white;
-                padding: 8px 15px;
-                font-size: 14px;
-            }
-            QPushButton:hover {
-                background-color: rgba(255, 255, 255, 0.3);
             }
         """)
         msg.exec_()
-
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        self.centralWidget().resize(self.size())
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
@@ -369,4 +286,4 @@ class AuthWindow(QMainWindow):
     def mouseMoveEvent(self, event):
         if event.buttons() == Qt.LeftButton:
             self.move(event.globalPos() - self.drag_position)
-            event.accept() 
+            event.accept()

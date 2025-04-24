@@ -40,6 +40,8 @@ class MainController:
         question = self.model.get_current_question()
         if question:
             self.game_window.show_question(question['question'], question['options'])
+            # Обновляем прогресс вопросов при загрузке следующего вопроса
+            self.game_window.update_question_progress(self.model.current_question_index + 1, len(self.model.questions))
         else:
             self.game_window.show_final_score(self.model.get_score(), len(self.model.questions))
             self.start_quiz()
@@ -67,4 +69,4 @@ class MainController:
             self.start_quiz()
         else:
             self.show_next_question()
-        self.timer.start() 
+        self.timer.start()
