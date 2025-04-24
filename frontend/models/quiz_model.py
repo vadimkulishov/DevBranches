@@ -30,6 +30,9 @@ class QuizModel:
         self.current_question_index += 1
         return self.current_question_index < len(self.questions)
 
+    def is_finished(self):
+        return self.current_question_index >= len(self.questions)
+
     def get_score(self):
         return self.score
 
