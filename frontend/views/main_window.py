@@ -391,9 +391,7 @@ class MainWindow(QMainWindow):
         self.current_user = username
         self.set_nickname(username)
         self.auth_window.hide()
-        # Don't show main window here - let the controller handle it
-        if hasattr(self, 'controller'):
-            self.controller.start_quiz()
+        self.show()  # Показываем главное окно с темами, но не запускаем игру автоматически
 
     def show_question(self, question, options):
         self.question_label.setText(question)
