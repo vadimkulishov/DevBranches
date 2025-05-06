@@ -15,6 +15,13 @@ class QuizModel:
         else:
             self.questions = []
 
+    def load_questions_by_topic(self, topic):
+        response, status_code = self.api.get_questions_by_topic(topic)
+        if status_code == 200:
+            self.questions = response
+        else:
+            self.questions = []
+
     def get_current_question(self):
         if self.current_question_index < len(self.questions):
             return self.questions[self.current_question_index]

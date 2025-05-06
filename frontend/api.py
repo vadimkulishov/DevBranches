@@ -22,3 +22,7 @@ class QuizAPI:
     def get_questions(self):
         response = requests.get(f'{self.base_url}/api/questions')
         return response.json(), response.status_code
+
+    def get_questions_by_topic(self, topic):
+        response = requests.get(f'{self.base_url}/api/questions', params={'topic': topic})
+        return response.json(), response.status_code
