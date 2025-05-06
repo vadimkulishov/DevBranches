@@ -174,6 +174,9 @@ class AnswersContainer(QWidget):
         tile.is_selected = True
         if self.main_window:
             self.main_window.selected_answer = self.answer_tiles.index(tile)
+            # Вызвать проверку ответа через контроллер
+            if hasattr(self.main_window, 'controller') and self.main_window.controller:
+                self.main_window.controller.check_answer()
 
     def show_result(self, selected_index, correct_index):
         is_correct = selected_index == correct_index
@@ -214,8 +217,9 @@ class AnswersContainer(QWidget):
 
 
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self, controller=None):
         super().__init__()
+        self.controller = controller
         self.setWindowTitle('Quiz')
         self.setFixedSize(1040, 780)
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowMaximizeButtonHint)
@@ -258,7 +262,7 @@ class MainWindow(QMainWindow):
         """)
 
         # Create auth window
-        self.auth_window = AuthWindow(self)
+        self.auth_window = AuthWindow(controller=self.controller, parent=self)
         self.auth_window.auth_successful.connect(self.handle_successful_auth)
 
         # Setup UI but don't show any windows
@@ -481,6 +485,25 @@ class MainWindow(QMainWindow):
         restart_button.clicked.connect(self.restart_game)
         layout.addWidget(restart_button)
 
+        # Кнопка "Вернуться на главную"
+        home_button = QPushButton("Вернуться на главную")
+        home_button.setStyleSheet("""
+            QPushButton {
+                background-color: #1E88E5;
+                border: none;
+                border-radius: 15px;
+                color: white;
+                padding: 10px 20px;
+                font-size: 16px;
+                margin-top: 10px;
+            }
+            QPushButton:hover {
+                background-color: #1565c0;
+            }
+        """)
+        home_button.clicked.connect(self.go_home)
+        layout.addWidget(home_button)
+
         self.setCentralWidget(self.result_window)
 
     def restart_game(self):
@@ -521,3 +544,14 @@ class MainWindow(QMainWindow):
             self.close()
         else:
             self.load_next_question()
+
+    def go_home(self):
+        # Удаляем финальное окно, если оно есть
+        if hasattr(self, 'result_window') and self.result_window:
+            self.result_window.deleteLater()
+            self.result_window = None
+        # Скрываем MainWindow
+        self.hide()
+        # Показываем AccountWindow
+        if self.controller and self.controller.account_window:
+            self.controller.account_window.show()

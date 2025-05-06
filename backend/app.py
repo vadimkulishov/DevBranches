@@ -3,6 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
+import json
 
 app = Flask(__name__)
 CORS(app)
@@ -19,6 +20,7 @@ class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(120), nullable=False)
+    progress = db.Column(db.Text, default='{}')  # Новое поле для прогресса
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -26,85 +28,15 @@ class User(db.Model):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
+    def get_progress(self):
+        try:
+            return json.loads(self.progress)
+        except Exception:
+            return {}
 
-# Quiz questions
-questions = [
-    {
-        'question': 'Какой язык программирования считается самым популярным в 2024 году?',
-        'options': ['Java', 'Python', 'JavaScript', 'C++'],
-        'correct_answer': 2  # JavaScript
-    },
-    {
-        'question': 'Что выведет этот код на Python?\nprint(2 + 2 * 2)',
-        'options': ['6', '8', '4', 'Ошибку'],
-        'correct_answer': 0  # 6
-    },
-    {
-        'question': 'Какой алгоритм сортировки самый быстрый в среднем случае?',
-        'options': ['Пузырьковая сортировка', 'Сортировка вставками', 'Быстрая сортировка (QuickSort)', 'Сортировка выбором'],
-        'correct_answer': 2  # QuickSort
-    },
-    {
-        'question': 'Как называется ошибка "бесконечного цикла"?',
-        'options': ['Infinite loop', 'Stack Overflow', 'Segmentation fault', 'SyntaxError'],
-        'correct_answer': 0  # Infinite loop
-    },
-    {
-        'question': 'Какой язык программирования создал Гвидо ван Россум?',
-        'options': ['Ruby', 'Python', 'Perl', 'PHP'],
-        'correct_answer': 1  # Python
-    },
-    {
-        'question': 'Какой тег в HTML используется для создания ссылки?',
-        'options': ['<div>', '<a>', '<link>', '<href>'],
-        'correct_answer': 1  # <a>
-    },
-    {
-        'question': 'Что такое "рекурсия"?',
-        'options': ['Цикл for', 'Функция, вызывающая саму себя', 'Условный оператор', 'Тип данных'],
-        'correct_answer': 1  # Функция, вызывающая саму себя
-    },
-    {
-        'question': 'Какой из этих языков компилируется в байт-код для JVM?',
-        'options': ['Python', 'Kotlin', 'JavaScript', 'C#'],
-        'correct_answer': 1  # Kotlin
-    },
-    {
-        'question': 'Какой командой в Git создаётся новая ветка?',
-        'options': ['git commit', 'git push', 'git branch', 'git clone'],
-        'correct_answer': 2  # git branch
-    },
-    {
-        'question': 'Какой принцип ООП позволяет скрывать детали реализации?',
-        'options': ['Наследование', 'Полиморфизм', 'Инкапсуляция', 'Абстракция'],
-        'correct_answer': 2  # Инкапсуляция
-    },
-    {
-        'question': 'Как называется система управления базами данных от Oracle?',
-        'options': ['MySQL', 'PostgreSQL', 'Oracle Database', 'SQLite'],
-        'correct_answer': 2  # Oracle Database
-    },
-    {
-        'question': 'Какой метод HTTP используется для получения данных?',
-        'options': ['POST', 'PUT', 'GET', 'DELETE'],
-        'correct_answer': 2  # GET
-    },
-    {
-        'question': 'Что делает оператор === в JavaScript?',
-        'options': ['Сравнивает без приведения типов', 'Сравнивает значения и типы', 'Присваивает значение', 'Проверяет на null'],
-        'correct_answer': 1  # Сравнивает значения и типы
-    },
-    {
-        'question': 'Какой фреймворк НЕ используется для фронтенда?',
-        'options': ['React', 'Angular', 'Vue.js', 'Django'],
-        'correct_answer': 3  # Django
-    },
-    {
-        'question': 'Какой язык программирования называют "языком веба"?',
-        'options': ['Java', 'C#', 'JavaScript', 'Swift'],
-        'correct_answer': 2  # JavaScript
-    }
-]
+    def set_progress(self, progress_dict):
+        self.progress = json.dumps(progress_dict)
+
 
 # Routes
 
@@ -147,10 +79,70 @@ def login():
 
 @app.route('/api/questions', methods=['GET'])
 def get_questions():
-    return jsonify(questions)
+    topic = request.args.get('topic')
+    if topic:
+        questions = Question.query.filter_by(topic=topic).all()
+    else:
+        questions = Question.query.all()
+    result = []
+    for q in questions:
+        result.append({
+            'id': q.id,
+            'topic': q.topic,
+            'question': q.question,
+            'options': q.get_options(),
+            'correct_answer': q.correct_answer
+        })
+    return jsonify(result)
+
+
+class Question(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    topic = db.Column(db.String(80), nullable=False)
+    question = db.Column(db.String(512), nullable=False)
+    options = db.Column(db.Text, nullable=False)  # Храним как JSON-строку
+    correct_answer = db.Column(db.Integer, nullable=False)
+
+    def set_options(self, options_list):
+        self.options = json.dumps(options_list)
+
+    def get_options(self):
+        return json.loads(self.options)
+
+
+@app.route('/api/update_progress', methods=['POST'])
+def update_progress():
+    data = request.get_json()
+    username = data.get('username')
+    topic = data.get('topic')
+
+    user = User.query.filter_by(username=username).first()
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+
+    progress = user.get_progress()
+    progress[topic] = progress.get(topic, 0) + 1
+    user.set_progress(progress)
+    db.session.commit()
+    return jsonify({'message': 'Progress updated'}), 200
+
+
+@app.route('/api/user_progress', methods=['GET'])
+def user_progress():
+    username = request.args.get('username')
+    user = User.query.filter_by(username=username).first()
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    return jsonify(user.get_progress()), 200
 
 
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
+        from sqlalchemy import text
+        try:
+            db.session.execute(text("ALTER TABLE user ADD COLUMN progress TEXT DEFAULT '{}'"))
+            db.session.commit()
+        except Exception as e:
+            print("Поле progress уже существует или другая ошибка:", e)
     app.run(debug=True, port=5001)

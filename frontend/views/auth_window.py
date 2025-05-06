@@ -117,8 +117,9 @@ class GradientBackground(QWidget):
 class AuthWindow(QWidget):
     auth_successful = pyqtSignal(str)
 
-    def __init__(self, parent=None):
+    def __init__(self, controller=None, parent=None):
         super().__init__(parent)
+        self.controller = controller
         self.api = QuizAPI()
         self.setup_ui()
 
@@ -206,9 +207,8 @@ class AuthWindow(QWidget):
             return
 
         response, status_code = self.api.login(username, password)
-        # Убираем вызов open_account_window, так как сигнал auth_successful уже обрабатывается в контроллере
         if status_code == 200:
-            self.auth_successful.emit(username)
+            self.open_account_window(username)
         else:
             self.show_message('Ошибка', response.get(
                 'error', 'Неверный логин или пароль'), QMessageBox.Warning)
@@ -231,7 +231,7 @@ class AuthWindow(QWidget):
                 'error', 'Ошибка при регистрации'), QMessageBox.Warning)
 
     def open_account_window(self, username):
-        self.account_window = AccountWindow(username)
+        self.account_window = AccountWindow(username, controller=self.controller)
         self.account_window.show()
         self.close()
 

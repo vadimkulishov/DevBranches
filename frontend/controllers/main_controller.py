@@ -2,15 +2,17 @@ from frontend.models.quiz_model import QuizModel
 from frontend.views.main_window import MainWindow
 from frontend.views.account_window import AccountWindow
 from PyQt5.QtCore import QTimer
+import requests
 
 
 class MainController:
     def __init__(self):
         self.model = QuizModel()
         self.model.load_questions()  # Load questions at startup
+        self.username = None  # Добавлено: хранение никнейма
 
         # Create main window but don't show it yet
-        self.game_window = MainWindow()
+        self.game_window = MainWindow(controller=self)
         self.game_window.controller = self
 
         # Setup timer
@@ -31,14 +33,12 @@ class MainController:
         pass  # Moved connections setup to __init__
 
     def on_auth_successful(self, username):
-        # Проверяем, отображается ли уже окно личного кабинета
+        self.username = username  # Сохраняем никнейм
         if self.account_window is None or not self.account_window.isVisible():
             if self.account_window is None:
-                self.account_window = AccountWindow(username)
-            self.auth_window.close()  # Закрываем окно авторизации
-            self.account_window.show()  # Показываем только одно окно личного кабинета
-
-        # Убедимся, что другие окна не отображаются
+                self.account_window = AccountWindow(username, controller=self)
+            self.auth_window.close()
+            self.account_window.show()
         self.game_window.hide()
 
     def show_main_window(self):
@@ -46,6 +46,7 @@ class MainController:
 
     def start_quiz(self):
         self.model.reset_quiz()
+        self.game_window.set_nickname(self.username)  # Устанавливаем никнейм
         self.show_next_question()
 
     def show_next_question(self):
@@ -59,12 +60,21 @@ class MainController:
         else:
             self.game_window.show_final_score(
                 self.model.get_score(), len(self.model.questions))
-            self.start_quiz()
+
+    def update_user_progress(self, topic):
+        url = "http://localhost:5001/api/update_progress"
+        data = {"username": self.username, "topic": topic}
+        try:
+            requests.post(url, json=data)
+        except Exception as e:
+            print("Ошибка обновления прогресса:", e)
 
     def check_answer(self):
         selected_answer = self.game_window.get_selected_answer()
         if selected_answer is not None:
             current_question = self.model.get_current_question()
+            if current_question is None:
+                return  # Нет вопроса — ничего не делаем
 
             # Останавливаем таймер проверки
             self.timer.stop()
@@ -74,7 +84,9 @@ class MainController:
                 current_question['correct_answer'])
 
             # Проверяем ответ
-            self.model.check_answer(selected_answer)
+            is_correct = self.model.check_answer(selected_answer)
+            if is_correct:
+                self.update_user_progress(current_question['topic'])
 
             # Ждем немного и переходим к следующему вопросу
             QTimer.singleShot(1500, self.proceed_to_next)
@@ -83,7 +95,17 @@ class MainController:
         if not self.model.next_question():
             self.game_window.show_final_score(
                 self.model.get_score(), len(self.model.questions))
-            self.start_quiz()
         else:
             self.show_next_question()
         self.timer.start()
+
+    def start_quiz_by_topic(self, topic):
+        self.model.load_questions_by_topic(topic)
+        self.model.reset_quiz()
+        self.game_window.set_nickname(self.username)  # Устанавливаем никнейм
+        # Проверка: есть ли вопросы по теме
+        if not self.model.questions:
+            from PyQt5.QtWidgets import QMessageBox
+            QMessageBox.warning(self.game_window, "Ошибка", f"Нет вопросов по теме '{topic}'!")
+            return
+        self.show_next_question()
