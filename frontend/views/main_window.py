@@ -2,14 +2,16 @@ from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QPushButton, QLabel, QRadioButton, QButtonGroup,
                              QMessageBox, QGridLayout, QFrame, QGraphicsOpacityEffect, QProgressBar)
 from PyQt5.QtCore import Qt, QPropertyAnimation, QEasingCurve, QPoint, QSize, QTimer
-from PyQt5.QtGui import QFont, QPalette, QColor
+from PyQt5.QtGui import QFont, QPalette, QColor, QPainter
 from frontend.views.auth_window import AuthWindow
+from frontend.views.account_window import AccountWindow
 
 
 class AnswerTile(QFrame):
     def __init__(self, text="", color="#3498db", parent=None):
         super().__init__(parent)
         self.text = text
+        self.default_color = color
         self.base_color = color
         self.is_selected = False
         self.is_animating = False
@@ -32,11 +34,10 @@ class AnswerTile(QFrame):
                 font-size: 24px;
                 font-weight: bold;
                 background: transparent;
-                min-height: 50px; /* Устанавливаем минимальную высоту для выравнивания текста */
+                min-height: 50px;
             }
         """)
-        layout.addWidget(
-            self.label, alignment=Qt.AlignCenter)  # Центрируем текст
+        layout.addWidget(self.label, alignment=Qt.AlignCenter)
 
         # Score label
         self.score_label = QLabel("")
@@ -59,24 +60,23 @@ class AnswerTile(QFrame):
         self.scale_animation.setDuration(300)
         self.scale_animation.setEasingCurve(QEasingCurve.OutBack)
 
-        self.opacity_animation = QPropertyAnimation(
-            self.opacity_effect, b"opacity")
+        self.opacity_animation = QPropertyAnimation(self.opacity_effect, b"opacity")
         self.opacity_animation.setDuration(300)
 
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(QColor(self.base_color))
+        painter.drawRoundedRect(self.rect(), 15, 15)
+
     def update_style(self, is_correct=None):
-        color = self.base_color
         if is_correct is not None:
             color = "#2ecc71" if is_correct else "#e74c3c"
-
-        self.setStyleSheet(f"""
-            QFrame {{
-                background-color: {color};
-                border-radius: 15px;
-                min-height: 195px;
-                margin: 13px;
-                border: none;
-            }}
-        """)
+        else:
+            color = self.default_color
+        self.base_color = color
+        self.update()
 
     def show_result(self, is_correct, points=None):
         self.update_style(is_correct)
@@ -93,7 +93,8 @@ class AnswerTile(QFrame):
             score_anim.start()
 
     def reset(self):
-        self.update_style()
+        self.base_color = self.default_color
+        self.update()
         self.score_label.hide()
         self.is_selected = False
 
@@ -225,6 +226,7 @@ class MainWindow(QMainWindow):
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowMaximizeButtonHint)
         self.selected_answer = None
         self.current_user = None
+        self.result_window = None
 
         # Apply global dark theme
         self.setStyleSheet("""
@@ -398,6 +400,8 @@ class MainWindow(QMainWindow):
         self.show()  # Показываем главное окно с темами, но не запускаем игру автоматически
 
     def show_question(self, question, options):
+        if not hasattr(self, 'question_label') or not self.question_label:
+            self.setup_ui()
         self.question_label.setText(question)
         self.selected_answer = None
         for tile, option in zip(self.answers_container.answer_tiles, options):
@@ -419,7 +423,9 @@ class MainWindow(QMainWindow):
     def show_result(self, is_correct):
         pass  # We'll skip the immediate feedback for this design
 
-    def show_final_score(self, score, total):
+    def show_final_score(self, *_):
+        score = self.controller.model.get_score()
+        total = self.controller.model.get_total_questions()
         final_message = self.controller.model.get_final_message()
         self.result_window = QWidget()
         self.result_window.setStyleSheet("""
@@ -455,8 +461,7 @@ class MainWindow(QMainWindow):
         """)
         layout.addWidget(score_label)
 
-        recommendation_label = QLabel(
-            "Рекомендации: Попробуйте улучшить свои знания в области, где вы допустили ошибки.")
+        recommendation_label = QLabel(final_message)
         recommendation_label.setAlignment(Qt.AlignCenter)
         recommendation_label.setWordWrap(True)
         recommendation_label.setStyleSheet("""
@@ -516,13 +521,16 @@ class MainWindow(QMainWindow):
         self.setup_ui()
 
         # Восстанавливаем никнейм после пересоздания интерфейса
-        self.set_nickname(self.current_user)
+        if hasattr(self, 'current_user') and self.current_user:
+            self.set_nickname(self.current_user)
 
         # Перезапускаем игру через контроллер
-        self.controller.start_quiz()
+        if hasattr(self, 'controller') and self.controller:
+            self.controller.start_quiz()
 
     def set_nickname(self, nickname):
-        self.nickname_label.setText(nickname)
+        if hasattr(self, 'nickname_label') and self.nickname_label:
+            self.nickname_label.setText(nickname)
 
     def update_question_progress(self, current, total):
         self.question_progress.setMaximum(total)
@@ -550,8 +558,36 @@ class MainWindow(QMainWindow):
         if hasattr(self, 'result_window') and self.result_window:
             self.result_window.deleteLater()
             self.result_window = None
+            
         # Скрываем MainWindow
         self.hide()
-        # Показываем AccountWindow
-        if self.controller and self.controller.account_window:
+        
+        # Показываем AccountWindow и обновляем его состояние
+        if self.controller and self.controller.account_window is not None:
+            self.controller.account_window.set_username(self.current_user)
+            self.controller.account_window.load_user_progress()  # Обновляем прогресс
             self.controller.account_window.show()
+        else:
+            # Если account_window не существует, создаем его
+            from frontend.views.account_window import AccountWindow
+            self.controller.account_window = AccountWindow(self.current_user, controller=self.controller)
+            self.controller.account_window.show()
+
+    def closeEvent(self, event):
+        # Очищаем все окна при закрытии
+        if hasattr(self, 'result_window') and self.result_window:
+            self.result_window.deleteLater()
+        if hasattr(self, 'auth_window'):
+            self.auth_window.close()
+        event.accept()
+
+    def start_quiz_by_topic(self, topic):
+        # Пересоздаём интерфейс перед началом нового теста
+        current_widget = self.centralWidget()
+        if current_widget:
+            current_widget.deleteLater()
+        self.setup_ui()
+        if hasattr(self, 'current_user') and self.current_user:
+            self.set_nickname(self.current_user)
+        if hasattr(self, 'controller') and self.controller:
+            self.controller.start_quiz_by_topic(topic)

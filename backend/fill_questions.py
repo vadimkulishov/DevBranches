@@ -1,5 +1,7 @@
 import os
-from app import db, Question, app
+import sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from backend.app import db, Question, app
 
 topics = [
     "Python", "JavaScript", "Java", "C++", "HTML & CSS",
@@ -134,8 +136,12 @@ example_questions = {
 for topic in topics:
     if topic not in example_questions:
         example_questions[topic] = [
-            (f"Вопрос {i+1} по теме {topic}?", [f"Вариант {j+1}" for j in range(4)], 0) for i in range(15)
+            (f"Вопрос {i+1} по теме {topic}?", [f"Вариант {j+1}" for j in range(4)], 0) for i in range(10)
         ]
+
+# Обрезаем до 10 вопросов для всех тем
+for topic in example_questions:
+    example_questions[topic] = example_questions[topic][:10]
 
 for topic, questions in example_questions.items():
     fixed_questions = []
@@ -144,13 +150,4 @@ for topic, questions in example_questions.items():
         if isinstance(correct, list):
             correct = correct[0]
         fixed_questions.append((qtext, opts, correct))
-    example_questions[topic] = fixed_questions
-
-with app.app_context():
-    for topic, questions in example_questions.items():
-        for qtext, opts, correct in questions:
-            q = Question(topic=topic, question=qtext, correct_answer=correct)
-            q.set_options(opts)
-            db.session.add(q)
-    db.session.commit()
-print("База вопросов успешно заполнена!") 
+    example_questions[topic] = fixed_questions 

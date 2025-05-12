@@ -26,19 +26,21 @@ class MainController:
             self.on_auth_successful)
         self.game_window.auth_window.show()
 
-        # Initialize account window attribute
+        # Initialize account window
         self.account_window = None
 
     def setup_connections(self):
         pass  # Moved connections setup to __init__
 
     def on_auth_successful(self, username):
-        self.username = username  # Сохраняем никнейм
-        if self.account_window is None or not self.account_window.isVisible():
-            if self.account_window is None:
-                self.account_window = AccountWindow(username, controller=self)
-            self.auth_window.close()
-            self.account_window.show()
+        self.username = username
+        if self.account_window is None:
+            self.account_window = AccountWindow(username, controller=self)
+        else:
+            self.account_window.set_username(username)
+            self.account_window.load_user_progress()
+        self.auth_window.close()
+        self.account_window.show()
         self.game_window.hide()
 
     def show_main_window(self):
@@ -62,10 +64,19 @@ class MainController:
                 self.model.get_score(), len(self.model.questions))
 
     def update_user_progress(self, topic):
+        if not self.username:
+            # Если username не установлен, пробуем получить его из account_window
+            if self.account_window and hasattr(self.account_window, 'username'):
+                self.username = self.account_window.username
+            else:
+                return
+            
         url = "http://localhost:5001/api/update_progress"
         data = {"username": self.username, "topic": topic}
         try:
-            requests.post(url, json=data)
+            response = requests.post(url, json=data)
+            if response.status_code != 200:
+                print(f"Ошибка обновления прогресса: {response.status_code}")
         except Exception as e:
             print("Ошибка обновления прогресса:", e)
 
@@ -100,12 +111,32 @@ class MainController:
         self.timer.start()
 
     def start_quiz_by_topic(self, topic):
+        if not self.username:
+            if self.account_window and hasattr(self.account_window, 'username'):
+                self.username = self.account_window.username
+            else:
+                from PyQt5.QtWidgets import QMessageBox
+                QMessageBox.warning(self.game_window, "Ошибка", "Пользователь не авторизован!")
+                return
+
         self.model.load_questions_by_topic(topic)
         self.model.reset_quiz()
-        self.game_window.set_nickname(self.username)  # Устанавливаем никнейм
+        
         # Проверка: есть ли вопросы по теме
         if not self.model.questions:
             from PyQt5.QtWidgets import QMessageBox
             QMessageBox.warning(self.game_window, "Ошибка", f"Нет вопросов по теме '{topic}'!")
             return
+            
+        # Показываем окно игры
+        self.game_window.set_nickname(self.username)
+        self.game_window.show()
         self.show_next_question()
+
+    def go_home(self):
+        # При возврате на аккаунт обновляем username и прогресс
+        if self.account_window:
+            self.account_window.set_username(self.username)
+            self.account_window.load_user_progress()
+            self.account_window.show()
+        self.game_window.hide()
