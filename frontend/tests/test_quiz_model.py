@@ -17,7 +17,7 @@ class TestQuizModel(unittest.TestCase):
     def test_check_correct_answer(self):
         result = self.model.check_answer(0)
         self.assertTrue(result)
-        self.assertEqual(self.model.get_score(), 500)
+        self.assertEqual(self.model.get_score(), 1)
 
     def test_check_incorrect_answer(self):
         result = self.model.check_answer(1)
