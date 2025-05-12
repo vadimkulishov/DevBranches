@@ -139,10 +139,15 @@ def user_progress():
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-        from sqlalchemy import text
-        try:
-            db.session.execute(text("ALTER TABLE user ADD COLUMN progress TEXT DEFAULT '{}'"))
-            db.session.commit()
-        except Exception as e:
-            print("Поле progress уже существует или другая ошибка:", e)
+        # Проверяем, есть ли поле progress в таблице user, если нет — добавляем
+        from sqlalchemy import inspect, text
+        inspector = inspect(db.engine)
+        columns = [col['name'] for col in inspector.get_columns('user')]
+        if 'progress' not in columns:
+            try:
+                db.session.execute(text("ALTER TABLE user ADD COLUMN progress TEXT DEFAULT '{}'"))
+                db.session.commit()
+                print("Поле progress успешно добавлено в таблицу user.")
+            except Exception as e:
+                print("Ошибка при добавлении поля progress:", e)
     app.run(debug=True, port=5001)
