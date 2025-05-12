@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QGridLayout, QPushButton, QMessageBox, QComboBox, QHBoxLayout, QFrame, QGraphicsOpacityEffect, QProgressBar, QScrollArea, QGraphicsDropShadowEffect, QFileDialog
 from PyQt5.QtCore import Qt, QSize, QPropertyAnimation, QTimer
-from PyQt5.QtGui import QPixmap, QIcon, QLinearGradient, QPainter, QColor
+from PyQt5.QtGui import QPixmap, QIcon, QLinearGradient, QPainter, QColor, QPainterPath
 import os
 import requests
 
@@ -45,7 +45,25 @@ class AccountWindow(QWidget):
         self.background = GradientBackground(self)
         self.background.setGeometry(self.rect())
         self.background.lower()
-        self.setStyleSheet("background-color: #181A20; font-family: 'Inter', 'Roboto', Arial, sans-serif;")
+        self.setStyleSheet("""
+            QMainWindow {
+                background-color: #1a1a1a;
+            }
+            QLabel {
+                color: white;
+                font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            }
+            QPushButton {
+                background-color: #333333;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                padding: 10px;
+            }
+            QPushButton:hover {
+                background-color: #444444;
+            }
+        """)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
@@ -86,11 +104,7 @@ class AccountWindow(QWidget):
         self.update_avatar()
         self.avatar_label.setFixedSize(120, 120)
         self.avatar_label.setAlignment(Qt.AlignCenter)
-        self.avatar_label.setStyleSheet("""
-            border-radius: 60px;
-            border: 4px solid #1E88E5;
-            background: #23242a;
-        """)
+        self.avatar_label.setStyleSheet("border: none; background: #23242a;")
         shadow = QGraphicsDropShadowEffect(self)
         shadow.setBlurRadius(36)
         shadow.setColor(QColor(30, 136, 229, 120))
@@ -212,11 +226,10 @@ class AccountWindow(QWidget):
             # Центр: прогресс-бар (растягивается)
             progress_bar = QProgressBar(self)
             correct = user_progress.get(topic["name"], 0)
-            total = 15  # Если у вас другое количество вопросов по теме — замените
+            total = 10  # Теперь всегда 10 вопросов
             percent = int((correct / total) * 100) if total > 0 else 0
             progress_bar.setValue(percent)
-            progress_bar.setTextVisible(True)
-            progress_bar.setFormat(f"{percent}% ({correct} из {total})")
+            progress_bar.setTextVisible(False)
             progress_bar.setFixedHeight(22)
             progress_bar.setStyleSheet("""
                 QProgressBar {
@@ -233,6 +246,19 @@ class AccountWindow(QWidget):
             """
             )
             topic_layout.addWidget(progress_bar, stretch=1)
+            # Красивый процент
+            percent_label = QLabel(f"{percent}%", self)
+            percent_label.setAlignment(Qt.AlignCenter)
+            percent_label.setFixedWidth(110)
+            percent_label.setStyleSheet(f"""
+                QLabel {{
+                    font-size: 20px;
+                    font-weight: bold;
+                    color: {'#43ea5e' if percent >= 70 else ('#ffb300' if percent >= 40 else '#ff1744')};
+                    background: transparent;
+                }}
+            """)
+            topic_layout.addWidget(percent_label)
             # Справа: кнопка 'Старт'
             start_btn = QPushButton("Старт", self)
             start_btn.setFixedHeight(36)
@@ -261,22 +287,36 @@ class AccountWindow(QWidget):
 
     def update_avatar(self):
         avatar_file = f"image_accaunt/{self.avatar_path}"
+        size = 120
+        # Загружаем изображение или плейсхолдер
         if os.path.exists(avatar_file):
-            avatar_pixmap = QPixmap(avatar_file).scaled(120, 120, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            src = QPixmap(avatar_file).scaled(size, size, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
         else:
-            # Стильный плейсхолдер (серый круг с иконкой)
-            avatar_pixmap = QPixmap(120, 120)
-            avatar_pixmap.fill(Qt.transparent)
-            painter = QPainter(avatar_pixmap)
+            src = QPixmap(size, size)
+            src.fill(Qt.transparent)
+            painter = QPainter(src)
             painter.setRenderHint(QPainter.Antialiasing)
             painter.setBrush(QColor("#23242a"))
-            painter.setPen(QColor("#1E88E5"))
-            painter.drawEllipse(0, 0, 120, 120)
+            painter.setPen(Qt.NoPen)
+            painter.drawEllipse(0, 0, size, size)
             painter.setPen(QColor("#888"))
             painter.setFont(self.font())
-            painter.drawText(avatar_pixmap.rect(), Qt.AlignCenter, "👤")
+            painter.drawText(src.rect(), Qt.AlignCenter, "👤")
             painter.end()
-        self.avatar_label.setPixmap(avatar_pixmap)
+        # Обрезаем изображение по кругу с помощью маски
+        rounded = QPixmap(size, size)
+        rounded.fill(Qt.transparent)
+        painter = QPainter(rounded)
+        painter.setRenderHint(QPainter.Antialiasing)
+        path = QPainterPath()
+        path.addEllipse(0, 0, size, size)
+        painter.setClipPath(path)
+        painter.drawPixmap(0, 0, src)
+        painter.end()
+        self.avatar_label.setPixmap(rounded)
+        self.avatar_label.setFixedSize(size, size)
+        self.avatar_label.setAlignment(Qt.AlignCenter)
+        self.avatar_label.setStyleSheet("border: none; background: transparent;")
 
     def choose_avatar(self):
         file_dialog = QFileDialog(self)
@@ -292,9 +332,9 @@ class AccountWindow(QWidget):
 
     def start_test(self, topic):
         if self.controller:
+            self.controller.username = self.username
             self.hide()
             self.controller.start_quiz_by_topic(topic)
-            self.controller.game_window.show()
         else:
             QMessageBox.warning(self, "Ошибка", "Контроллер не найден!")
 
@@ -307,14 +347,43 @@ class AccountWindow(QWidget):
         try:
             response = requests.get(url)
             if response.status_code == 200:
-                return response.json()
+                progress_data = response.json()
+                # Обновляем прогресс-бары
+                for i in range(self.layout().count()):
+                    item = self.layout().itemAt(i)
+                    if isinstance(item, QScrollArea):
+                        scroll_content = item.widget()
+                        if scroll_content:
+                            for j in range(scroll_content.layout().count()):
+                                topic_widget = scroll_content.layout().itemAt(j).widget()
+                                if topic_widget:
+                                    for child in topic_widget.findChildren(QProgressBar):
+                                        topic_name = child.property("topic_name")
+                                        if topic_name in progress_data:
+                                            correct = progress_data[topic_name]
+                                            total = 10
+                                            percent = int((correct / total) * 100) if total > 0 else 0
+                                            child.setValue(percent)
+                return progress_data
         except Exception as e:
             print("Ошибка загрузки прогресса:", e)
         return {}
 
     def handle_logout(self):
         if self.controller:
+            self.controller.username = None  # Очищаем имя пользователя
+            self.controller.account_window = None  # Очищаем ссылку на окно аккаунта
             self.hide()
             self.controller.auth_window.show()
         else:
             self.hide()
+
+    def set_username(self, username):
+        self.username = username
+        # Найти welcome_label и обновить текст
+        for i in range(self.layout().count()):
+            item = self.layout().itemAt(i)
+            widget = item.widget()
+            if isinstance(widget, QLabel) and 'Добро пожаловать' in widget.text():
+                widget.setText(f"Добро пожаловать, {self.username}!")
+                break
